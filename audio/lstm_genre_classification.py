@@ -1,21 +1,20 @@
 import json
 from glob import glob
-import torch
-import pytorch_lightning as pl
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split
-from sklearn.model_selection import train_test_split
-import numpy as np
-from pytorch_lightning.loggers import TensorBoardLogger
 
-from prepare_data import get_id_from_path
+import numpy as np
+import pytorch_lightning as pl
+import torch
 from audio_processing import random_crop
+from prepare_data import get_id_from_path
+from pytorch_lightning.loggers import TensorBoardLogger
+from sklearn.model_selection import train_test_split
+from torch.nn import functional as F
+from torch.utils.data import DataLoader
 
 
 class AudioDataset(torch.utils.data.Dataset):
 
     def __init__(self, data, max_len=256):
-
         self.data = data
         self.max_len = max_len
 
@@ -23,7 +22,6 @@ class AudioDataset(torch.utils.data.Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-
         npy_path = self.data[idx][0]
         label = self.data[idx][1]
 
@@ -58,7 +56,6 @@ class AudioClassifier(pl.LightningModule):
         self.fc2 = torch.nn.Linear(128, input_size)
 
     def forward(self, x):
-
         x = self.do(x)
 
         x, _ = self.lstm1(x)
@@ -97,7 +94,6 @@ class AudioClassifier(pl.LightningModule):
         self.log("valid_loss", loss)
         self.log("valid_loss_y", loss_y)
         self.log("valid_loss_x", loss_x)
-
         self.log("valid_acc", acc)
 
     def test_step(self, batch, batch_idx):
@@ -116,7 +112,6 @@ class AudioClassifier(pl.LightningModule):
         self.log("test_loss", loss)
         self.log("test_loss_y", loss_y)
         self.log("test_loss_x", loss_x)
-
         self.log("test_acc", acc)
 
     def configure_optimizers(self):
@@ -153,7 +148,7 @@ if __name__ == "__main__":
     samples = list(zip(files, labels))
 
     _train, test = train_test_split(
-        samples, test_size=0.1, random_state=1337, stratify=labels
+        samples, test_size=0.2, random_state=1337, stratify=[a[1] for a in samples]
     )
 
     train, val = train_test_split(
@@ -183,8 +178,4 @@ if __name__ == "__main__":
 
     trainer.test(test_dataloaders=test_loader)
 
-    torch.save(model.state_dict(), "model_%s.pth" % reconstruction_weight)
-
-
-
-
+    torch.save(model.state_dict(), "../models/model_%s.pth" % reconstruction_weight)

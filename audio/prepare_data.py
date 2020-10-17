@@ -10,10 +10,6 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 import json
 
-import numpy as np
-
-from audio_processing import random_crop, random_mask
-
 
 def load(filepath):
     # From https://github.com/mdeff/fma/blob/rc1/utils.py / MIT License

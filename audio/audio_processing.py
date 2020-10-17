@@ -31,7 +31,7 @@ def load_audio_file(file_path, input_length=input_length):
 
         offset = np.random.randint(max_offset)
 
-        data = data[offset : (input_length + offset)]
+        data = data[offset: (input_length + offset)]
 
     else:
         if input_length > len(data):
@@ -49,7 +49,7 @@ def load_audio_file(file_path, input_length=input_length):
 
 def random_crop(data, crop_size=128):
     start = np.random.randint(0, data.shape[0] - crop_size)
-    return data[start : (start + crop_size), :]
+    return data[start: (start + crop_size), :]
 
 
 def random_mask(data):
@@ -57,7 +57,7 @@ def random_mask(data):
     prev_zero = False
     for i in range(new_data.shape[0]):
         if np.random.uniform(0, 1) < 0.1 or (
-            prev_zero and np.random.uniform(0, 1) < 0.5
+                prev_zero and np.random.uniform(0, 1) < 0.5
         ):
             prev_zero = True
             new_data[i, :] = 0
@@ -74,7 +74,6 @@ def save(path):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
     from tqdm import tqdm
     from glob import glob
     from multiprocessing import Pool
