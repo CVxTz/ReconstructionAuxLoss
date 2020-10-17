@@ -14,8 +14,8 @@ if __name__ == "__main__":
     from pathlib import Path
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--metadata_path")
-    parser.add_argument("--mp3_path")
+    parser.add_argument("--metadata_path", default="/media/ml/data_ml/fma_metadata/")
+    parser.add_argument("--mp3_path", default="/media/ml/data_ml/fma_small/")
 
     args = parser.parse_args()
 
@@ -56,14 +56,13 @@ if __name__ == "__main__":
 
     reconstruction_weights = [100.0, 10.0, 5.0, 2.0, 1.0, 0.1, 0.01, 0.0]
 
-    model_paths = ['../models/model_%s.pth' % a for a in reconstruction_weights]
+    model_paths = [
+        list(glob("../models/model_%s*" % a))[0] for a in reconstruction_weights
+    ]
 
-    models = [AudioClassifier(reconstruction_weight=a).cuda() for a in reconstruction_weights]
+    models = [AudioClassifier.load_from_checkpoint(a).cuda() for a in model_paths]
 
     accuracies = []
-
-    for model, model_path in zip(models, model_paths):
-        model.load_state_dict(torch.load(model_path))
 
     for model in tqdm(models):
         correct = 0
@@ -79,7 +78,6 @@ if __name__ == "__main__":
 
         accuracies.append(correct / len(test_data))
 
-    data = {"reconstruction_weights": reconstruction_weights,
-            "accuracies": accuracies}
+    data = {"reconstruction_weights": reconstruction_weights, "accuracies": accuracies}
 
-    json.dump(data, open('../eval_data.json', 'w'), indent=4)
+    json.dump(data, open("../eval_data/test_accuracy.json", "w"), indent=4)

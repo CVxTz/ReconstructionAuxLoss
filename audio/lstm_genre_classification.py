@@ -10,11 +10,11 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from sklearn.model_selection import train_test_split
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 
 class AudioDataset(torch.utils.data.Dataset):
-
-    def __init__(self, data, max_len=256):
+    def __init__(self, data, max_len=512):
         self.data = data
         self.max_len = max_len
 
@@ -36,24 +36,33 @@ class AudioDataset(torch.utils.data.Dataset):
 
 
 class AudioClassifier(pl.LightningModule):
-    def __init__(self, classes=8, input_size=128, reconstruction_weight=0.1):
+    def __init__(self, classes=8, input_size=128, reconstruction_weight=0.1, p=0.3):
         super().__init__()
         self.save_hyperparameters()
 
         self.reconstruction_weight = reconstruction_weight
         self.input_size = input_size
+        self.p = p
 
-        self.do = torch.nn.Dropout(p=0.3)
+        self.do = torch.nn.Dropout(p=self.p)
 
         self.lstm1 = torch.nn.LSTM(
-            input_size=input_size, hidden_size=input_size // 2, bidirectional=True, batch_first=True
+            input_size=self.input_size,
+            hidden_size=self.input_size,
+            bidirectional=True,
+            batch_first=True,
         )
         self.lstm2 = torch.nn.LSTM(
-            input_size=input_size, hidden_size=input_size // 2, bidirectional=True, batch_first=True
+            input_size=2 * self.input_size,
+            hidden_size=self.input_size,
+            bidirectional=True,
+            batch_first=True,
         )
 
-        self.fc1 = torch.nn.Linear(128, classes)
-        self.fc2 = torch.nn.Linear(128, input_size)
+        self.fc1 = torch.nn.Linear(self.input_size * 2, self.input_size)
+        self.fy = torch.nn.Linear(self.input_size, classes)
+
+        self.fc2 = torch.nn.Linear(self.input_size * 2, input_size)
 
     def forward(self, x):
         x = self.do(x)
@@ -63,8 +72,10 @@ class AudioClassifier(pl.LightningModule):
 
         x, _ = torch.max(self.do(x_seq), dim=1)
 
-        y_hat = self.fc1(x)
-        x_reconstruction = torch.clamp(self.fc2(self.do(x_seq)), -1., 1)
+        x = F.relu(self.do(self.fc1(x)))
+        y_hat = self.fy(x)
+
+        x_reconstruction = torch.clamp(self.fc2(self.do(x_seq)), -1.0, 1.0)
 
         return y_hat, x_reconstruction
 
@@ -118,6 +129,30 @@ class AudioClassifier(pl.LightningModule):
         return torch.optim.Adam(self.parameters(), lr=1e-4)
 
 
+class DecayLearningRate(pl.Callback):
+    def __init__(self):
+        self.old_lrs = []
+
+    def on_train_start(self, trainer, pl_module):
+        # track the initial learning rates
+        for opt_idx, optimizer in enumerate(trainer.optimizers):
+            group = []
+            for param_group in optimizer.param_groups:
+                group.append(param_group["lr"])
+            self.old_lrs.append(group)
+
+    def on_train_epoch_end(self, trainer, pl_module, outputs):
+        for opt_idx, optimizer in enumerate(trainer.optimizers):
+            old_lr_group = self.old_lrs[opt_idx]
+            new_lr_group = []
+            for p_idx, param_group in enumerate(optimizer.param_groups):
+                old_lr = old_lr_group[p_idx]
+                new_lr = old_lr * 0.97
+                new_lr_group.append(new_lr)
+                param_group["lr"] = new_lr
+            self.old_lrs[opt_idx] = new_lr_group
+
+
 if __name__ == "__main__":
     import argparse
     from pathlib import Path
@@ -133,7 +168,7 @@ if __name__ == "__main__":
     mp3_path = Path(args.mp3_path)
 
     batch_size = 32
-    epochs = 64
+    epochs = 256
     reconstruction_weight = args.reconstruction_weight
 
     CLASS_MAPPING = json.load(open(metadata_path / "mapping.json"))
@@ -170,12 +205,23 @@ if __name__ == "__main__":
     logger = TensorBoardLogger(
         save_dir="../",
         version="Lambda=%s" % reconstruction_weight,
-        name='lightning_logs'
+        name="lightning_logs",
     )
 
-    trainer = pl.Trainer(max_epochs=epochs, gpus=1, logger=logger)
+    checkpoint_callback = ModelCheckpoint(
+        monitor="valid_acc",
+        mode="max",
+        filepath="../models/",
+        prefix="model_%s" % reconstruction_weight,
+    )
+
+    trainer = pl.Trainer(
+        max_epochs=epochs,
+        gpus=1,
+        logger=logger,
+        checkpoint_callback=checkpoint_callback,
+        callbacks=[DecayLearningRate()],
+    )
     trainer.fit(model, train_loader, val_loader)
 
     trainer.test(test_dataloaders=test_loader)
-
-    torch.save(model.state_dict(), "../models/model_%s.pth" % reconstruction_weight)
