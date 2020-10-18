@@ -14,6 +14,6 @@ plt.plot(df10["Step"], df10["Value"], label=r"$\lambda$ = 10")
 plt.plot(df2["Step"], df2["Value"], label=r"$\lambda$ = 2")
 
 plt.xlabel("Step")
-plt.ylabel("Loss (Lower is better)")
+plt.ylabel("Classification Loss (Lower is better)")
 plt.legend()
 plt.savefig("loss.png")
