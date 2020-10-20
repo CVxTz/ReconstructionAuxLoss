@@ -66,6 +66,7 @@ if __name__ == "__main__":
 
     for model in tqdm(models):
         correct = 0
+        model.eval()
 
         with torch.no_grad():
             for x, y in tqdm(test_loader):
@@ -80,4 +81,4 @@ if __name__ == "__main__":
 
     data = {"reconstruction_weights": reconstruction_weights, "accuracies": accuracies}
 
-    json.dump(data, open("../eval_data/test_accuracy.json", "w"), indent=4)
+    json.dump(data, open("../eval_data/_test_accuracy.json", "w"), indent=4)
