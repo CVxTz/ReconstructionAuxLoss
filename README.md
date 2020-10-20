@@ -99,16 +99,18 @@ Adding Dropout layers acts as additional regularization and makes the
 reconstruction task a little more challenging for the model.<br> We use Pytorch
 Lightning to implement this model, the forward function looks like this:
 
-    forward(self, x):
-        x = self.do(x)
-        x, _ = self.lstm1(x)
-        x_seq, _ = self.lstm2(x)
-        x, _ = torch.max(self.do(x_seq), dim=1)
-        x = F.relu(self.do(self.fc1(x)))
-        y_hat = self.fy(x)
-        x_reconstruction = torch.clamp(self.fc2(self.do(x_seq)), -1.0, 1.0)
-        
-    y_hat, x_reconstruction
+```
+forward(self, x):
+    x = self.do(x)
+    x, _ = self.lstm1(x)
+    x_seq, _ = self.lstm2(x)
+    x, _ = torch.max(self.do(x_seq), dim=1)
+    x = F.relu(self.do(self.fc1(x)))
+    y_hat = self.fy(x)
+    x_reconstruction = torch.clamp(self.fc2(self.do(x_seq)), -1.0, 1.0)
+    
+    return y_hat, x_reconstruction
+```
 
 Now we define the loss as a weighted sum between the classification loss and
 reconstruction loss as follows:
@@ -118,14 +120,16 @@ reconstruction loss as follows:
 Where λ is a hyper-parameter that helps mitigate the fact that the two losses do
 not have the same scale while also giving more control on how much importance we
 want to give to the auxiliary task. The loss is defined as follow:
+```
+training_step(self, batch, batch_idx):
+    x, y = batch
+    y_hat, x_reconstruction = self(x)
+    loss_y = F.cross_entropy(y_hat, y)
+    loss_x = F.l1_loss(x, x_reconstruction)
+    
+    return loss_y + self.reconstruction_weight * loss_x
+```
 
-    training_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat, x_reconstruction = self(x)
-        loss_y = F.cross_entropy(y_hat, y)
-        loss_x = F.l1_loss(x, x_reconstruction)
-        
-    loss_y + self.reconstruction_weight * loss_x
 
 ### Results:
 
