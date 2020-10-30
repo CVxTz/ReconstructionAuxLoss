@@ -3,6 +3,7 @@ import warnings
 
 import librosa
 import numpy as np
+import random
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -48,7 +49,7 @@ def load_audio_file(file_path, input_length=input_length):
 
 
 def random_crop(data, crop_size=128):
-    start = np.random.randint(0, data.shape[0] - crop_size)
+    start = int(random.random() * (data.shape[0] - crop_size))
     return data[start : (start + crop_size), :]
 
 

@@ -194,8 +194,8 @@ if __name__ == "__main__":
     test_data = AudioDataset(test)
     val_data = AudioDataset(val)
 
-    train_loader = DataLoader(train_data, batch_size=batch_size, num_workers=8)
-    val_loader = DataLoader(val_data, batch_size=batch_size, num_workers=8)
+    train_loader = DataLoader(train_data, batch_size=batch_size, num_workers=8, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=batch_size, num_workers=8, shuffle=True)
     test_loader = DataLoader(
         test_data, batch_size=batch_size, shuffle=False, num_workers=8
     )
